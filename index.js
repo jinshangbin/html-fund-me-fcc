@@ -5,32 +5,37 @@ import { abi, contractAddress } from "./contants.js"
 const connectBtn = document.getElementById("connectBtn")
 const fundBtn = document.getElementById("fundBtn")
 const contractBalanceValue = document.getElementById("contractBalance")
+const accountBalanceValue = document.getElementById("accountBalance")
 const withdrawBtn = document.getElementById("withdrawBtn")
 
 connectBtn.onclick = connect
 fundBtn.onclick = fund
 withdrawBtn.onclick = withdraw
 
+let provider, signer
+
 init()
 
 async function init() {
-    const provider = new ethers.providers.Web3Provider(window.ethereum)
-    const signer = provider.getSigner()
+    provider = new ethers.providers.Web3Provider(window.ethereum)
+    signer = provider.getSigner()
     const address = await signer.getAddress()
     if (address != "") {
         connectBtn.innerHTML = address
         refreshContractBalance(provider)
+        refreshAccountBalance(provider, address)
     }
 }
 
 async function connect() {
     if (typeof window.ethereum !== "undefined") {
         await window.ethereum.request({ method: "eth_requestAccounts" })
-        const provider = new ethers.providers.Web3Provider(window.ethereum)
-        const signer = provider.getSigner()
+        provider = new ethers.providers.Web3Provider(window.ethereum)
+        signer = provider.getSigner()
         const address = await signer.getAddress()
-
         connectBtn.innerHTML = address
+        refreshContractBalance(provider)
+        refreshAccountBalance(provider, address)
     } else {
         connectBtn.innerHTML = "palse install metamask"
     }
@@ -39,8 +44,6 @@ async function connect() {
 async function fund() {
     if (typeof window.ethereum !== "undefined") {
         const ethAmount = document.getElementById("ethAmount").value
-        const provider = new ethers.providers.Web3Provider(window.ethereum)
-        const signer = provider.getSigner()
         const contract = new ethers.Contract(contractAddress, abi, signer)
         try {
             const transactionResponse = await contract.fund({
@@ -48,7 +51,7 @@ async function fund() {
             })
             listenForTransactionMine(transactionResponse, provider)
         } catch (error) {
-            console.log(error)
+            alert(error.error.message)
         }
     } else {
         connectBtn.innerHTML = "palse install metamask"
@@ -57,9 +60,6 @@ async function fund() {
 
 async function withdraw() {
     if (typeof window.ethereum !== "undefined") {
-        const ethAmount = document.getElementById("ethAmount").value
-        const provider = new ethers.providers.Web3Provider(window.ethereum)
-        const signer = provider.getSigner()
         const contract = new ethers.Contract(contractAddress, abi, signer)
         try {
             const transactionResponse = await contract.withdraw()
@@ -80,7 +80,8 @@ async function listenForTransactionMine(transactionResponse, provider) {
                 console.log(
                     `Completed with ${transactionReceipt.confirmations} confirmations. `
                 )
-                refreshContractBalance(provider)
+                alert("交易完成")
+                init()
             })
             resolve()
         } catch (error) {
@@ -93,4 +94,10 @@ async function refreshContractBalance(provider) {
     const balance = await provider.getBalance(contractAddress)
     console.log("contract balance: " + balance)
     contractBalanceValue.value = ethers.utils.formatEther(balance)
+}
+
+async function refreshAccountBalance(provider, address) {
+    const balance = await provider.getBalance(address)
+    console.log("account balance: " + balance)
+    accountBalanceValue.value = ethers.utils.formatEther(balance)
 }
